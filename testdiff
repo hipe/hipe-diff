@@ -1,0 +1,28 @@
+#!/usr/bin/env ruby
+# require 'rubygems'; require 'ruby-debug'; puts "\e[1;5;33mruby-debug\e[0m"
+
+require File.dirname(__FILE__) + '/proxy'
+MyConst = Hipe::Diff::Proxy
+def usage_string
+  "usage: #{$PROGRAM_NAME} <before_file> <after_file> [pass thru opts]"
+end
+def description_string
+  "\"#{File.basename($PROGRAM_NAME, '.rb')}\" -- test the diff colorizing wrapper (#{MyConst.to_s})."
+end
+unless ARGV.size >= 2
+  puts description_string
+  puts usage_string
+  exit 3
+end
+path_a = ARGV.shift
+path_b = ARGV.shift
+opts = {}
+ARGV.each do |token|
+  md = (/\A--([-a-zA-Z]+)(?:=([^ ]+))?\z/).match(token)
+  if ! md
+    puts "bad option: #{token.inspect}.  Use only long forms with no extra spaces (e.g --foo='bar')"
+    exit
+  end
+  opts[md[1]] = md[2]
+end
+MyConst.diff path_a, path_b, opts
