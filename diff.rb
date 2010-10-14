@@ -3,12 +3,15 @@ require 'rubygems'
 require 'diff/lcs' # '1.1.2'
 require 'stringio'
 
+module Hipe; end
+module Hipe::Diff; end
+require File.dirname(__FILE__) + '/support' unless Hipe::Diff.const_defined?('Colorize')
+
 #
 # puts Hipe::Diff.colorize("A\nC\nD", "A\nB\nC")
 #
 
-module Hipe;
-end
+
 module Hipe::Diff
   class << self
     def string_diff mixed_left, mixed_right, &block
@@ -16,20 +19,6 @@ module Hipe::Diff
     end
     def colorize mixed_left, mixed_right, &block
       LcsDiffStyler.new{ |l| l.gitlike! }.diff(mixed_left, mixed_right, &block)
-    end
-  end
-  module Colorize
-    Codes = { :red=>'31', :green=>'32', :bold=>'1', :red_bg=>'41', :magenta => '35' }
-    def colorize str, *codes
-      if 1 == codes.size
-        if codes.first.nil?
-          return str
-        elsif codes.first.kind_of?(Array)
-          codes = codes.first
-        end
-      end
-      codes = codes.map{|c| Codes[c]}
-      "\033[#{codes * ';'}m#{str}\033[0m";
     end
   end
   class Fail < RuntimeError;
@@ -72,7 +61,7 @@ module Hipe::Diff
       @left  = '-'
       @right = '+'
       @separator_line = nil
-      @trailing_whitespace_style = [:red_bg]
+      @trailing_whitespace_style = [:background, :red]
       @style_loaded = true
       self
     end
@@ -222,13 +211,13 @@ if __FILE__ == $PROGRAM_NAME
   module Hipe::Diff::Test
     class CaseVisual < Test::Unit::TestCase
       def test_context
-        before = <<-B
+        before = <<-B.gsub(/^          /,'')
           alpha
           beta
           gamma
           tau
         B
-        after = <<-A
+        after = <<-A.gsub(/^          /,'')
           alpha
           gamma
           zeta
