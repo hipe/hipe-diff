@@ -1,4 +1,4 @@
-require 'rubygems'
+require 'rubygems' # for 'diff/lcs'
 # require 'ruby-debug'; puts "\e[1;5;33mruby-debug\e[0m"
 require 'diff/lcs' # '1.1.2'
 require 'stringio'
@@ -20,13 +20,6 @@ module Hipe::Diff
     def colorize mixed_left, mixed_right, &block
       LcsDiffStyler.new{ |l| l.gitlike! }.diff(mixed_left, mixed_right, &block)
     end
-  end
-  class Fail < RuntimeError;
-    def initialize(*a,&b)
-      super(*a)
-      yield self if block_given?
-    end
-    attr_accessor :diff
   end
   class LcsDiffStyler
     include Colorize

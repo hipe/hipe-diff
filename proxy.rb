@@ -18,8 +18,20 @@ module Hipe::Diff
       end
     end
 
+    module DiffClassMethods
+      def relativize_validate base, path_a, path_b
+        unless [0,0]==[path_a, path_b].map{ |x| x.index(base) }
+          Hipe::Diff::Flail.new( "chdir base must be at the beggining of both paths: "<<
+            "(#{base.inspect}, #{path_a.inspect}, #{path_b.inspect})") do |fl|
+              fl.meta = [base, path_a, path_b]
+          end
+        end
+      end
+    end
+
     class Diff
-      include Hipe::Diff::Colorize
+      include Hipe::Diff::Colorize, Hipe::Diff::Flails
+      extend DiffClassMethods
       def initialize path_a, path_b, opts={}
         @path_a = path_a
         @path_b = path_b
@@ -76,35 +88,41 @@ module Hipe::Diff
       end
 
       def run
-        @chdir = @opts.delete(:chdir)
-        @out = @opts.delete(:out) || $stdout
-        @err = @opts.delete(:err) || $stderr
-        @styles = @opts.delete(:styles) || {}
-        fail = nil
-        [@path_a, @path_b].each do |p|
-          unless File.exist? p
-            @err.puts colorize("error: ", :red) << "does not exist: #{p}"
-            fail = :file_not_found
+        status = nil
+        begin
+          @chdir = @opts.delete(:chdir)
+          @out = @opts.delete(:out) || $stdout
+          @err = @opts.delete(:err) || $stderr
+          @styles = @opts.delete(:styles) || {}
+          fail = nil
+          [@path_a, @path_b].each do |p|
+            unless File.exist? p
+              @err.puts colorize("error: ", :red) << "does not exist: #{p}"
+              fail = :file_not_found
+            end
           end
-        end
-        fail and return fail_with_message(fail)
-        @path_a, @path_b = relativize(@chdir, @path_a, @path_b) if @chdir
-        unnorm = { '--unified' => '3', '--recursive' => nil }
-        @opts.keys.each{ |k| unnorm["--#{k.to_s.gsub('_','-')}"] = @opts[k] }
-        @opts = nil # don't get confused
-        @args = ['diff', unnorm.map{|x| x.compact.join('=')}, @path_a, @path_b].flatten
-        block = proc do
-          Open3.popen3(*@args) do |sin, sout, serr|
-            @sout = sout; @serr = serr
-            read_streams
+          fail and return fail_with_message(fail)
+          @path_a, @path_b = relativize(@chdir, @path_a, @path_b) if @chdir
+          unnorm = { '--unified' => '3', '--recursive' => nil }
+          @opts.keys.each{ |k| unnorm["--#{k.to_s.gsub('_','-')}"] = @opts[k] }
+          @opts = nil # don't get confused
+          @args = ['diff', unnorm.map{|x| x.compact.join('=')}, @path_a, @path_b].flatten
+          block = proc do
+            Open3.popen3(*@args) do |sin, sout, serr|
+              @sout = sout; @serr = serr
+              read_streams
+            end
           end
+          if @chdir
+            FileUtils.cd(@chdir, :verbose=>true, &block)
+          else
+            block.call
+          end
+        rescue Hipe::Diff::Flail => e
+          @err.puts e.message
+          status = :flailure
         end
-        if @chdir
-          FileUtils.cd(chdir, :verbose=>true, &block)
-        else
-          block.call
-        end
-        nil # success
+        status
       end
     protected
       def build_stream_colorizer
@@ -134,7 +152,7 @@ module Hipe::Diff
         status
       end
       def relativize base, path_a, path_b
-        fail("KISS") unless [0,0]==[path_a, path_b].map{|x| x.index(base)}
+        fail = self.class.relativize_validate( base, path_a, path_b ) and raise fail
         tail_a, tail_b = [path_a, path_b].map{|x| '.'+x[base.length..-1]}
         [tail_a, tail_b]
       end

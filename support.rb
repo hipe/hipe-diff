@@ -1,5 +1,18 @@
 module Hipe
   module Diff
+    class Flail < RuntimeError
+      def initialize *a, &b
+        super(*a)
+        @meta = nil
+        yield self if block_given?
+      end
+      attr_accessor :meta
+    end
+    module Flails
+      def flail *a, &b
+        raise Flail.new(*a, &b)
+      end
+    end
     module Colorize
       Codes = {:bright=>'1', :red=>'31', :green=>'32', :yellow=>'33',
         :blue=>'34',:magenta=>'35',:bold=>'1',:blink=>'5'}
