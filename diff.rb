@@ -1,4 +1,3 @@
-require 'rubygems' # for 'diff/lcs'
 # require 'ruby-debug'; puts "\e[1;5;33mruby-debug\e[0m"
 require 'diff/lcs' # '1.1.2'
 require 'stringio'
